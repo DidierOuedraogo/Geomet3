@@ -104,7 +104,6 @@ def check_password():
             return False
     
     return False
-
 # Configuration de la page
 st.set_page_config(
     page_title="Prédiction de Récupération Métallurgique",
