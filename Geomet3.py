@@ -66,13 +66,10 @@ def cm_to_base64(cmap, min_val, max_val):
 def check_password():
     """Returns `True` if the user had the correct password."""
     
-    # Configuration des utilisateurs et mots de passe
+    # Configuration des utilisateurs et mots de passe avec des mots de passe plus complexes
     users = {
-        "user1": "password1",
-        "user2": "password2",
-        "user3": "password3", 
-        "user4": "password4",
-        "user5": "password5"
+        "didier": "Geo_Metal2025!",
+        "admin": "S3cur3P@ssw0rd!"
     }
     
     # Initialiser l'état d'authentification s'il n'existe pas
@@ -184,10 +181,10 @@ st.markdown(
 )
 
 # Gérer la déconnexion via paramètre URL
-if st.experimental_get_query_params().get("logout", [""])[0] == "true":
+if st.query_params.get("logout", [""])[0] == "true":
     st.session_state["authentication_status"] = False
     st.session_state["username"] = ""
-    st.experimental_set_query_params()
+    st.query_params.clear()
     st.rerun()
 
 # Titre de l'application
@@ -873,8 +870,9 @@ elif page == "Exploration des données":
         st.markdown("<div class='card'>", unsafe_allow_html=True)
         st.markdown("### Sélection de la Variable Cible")
         
-        # Sélection de la variable cible
-        target_col = st.selectbox("Sélectionnez la variable cible (récupération métallurgique)", data.columns)
+        # Sélection de la variable cible avec "Recuperation" comme valeur par défaut si elle existe
+        default_target_idx = data.columns.get_loc("Recuperation") if "Recuperation" in data.columns else 0
+        target_col = st.selectbox("Sélectionnez la variable cible (récupération métallurgique)", data.columns, index=default_target_idx)
         st.session_state.target = target_col
         
         # Sélection des features
@@ -1613,6 +1611,9 @@ elif page == "Data Augmentation":
             )
             
             if features_for_augmentation:
+                # Permettre de générer jusqu'à 1000 échantillons
+                max_samples = max(1000, n_original * 5)
+                
                 # Options spécifiques à chaque méthode
                 if augmentation_method == "Perturbation gaussienne":
                     st.markdown("#### Perturbation gaussienne")
@@ -1622,7 +1623,7 @@ elif page == "Data Augmentation":
                     """)
                     
                     # Paramètres
-                    n_samples = st.slider("Nombre d'échantillons à générer", 10, n_original * 5, n_original)
+                    n_samples = st.slider("Nombre d'échantillons à générer", 10, max_samples, min(1000, n_original))
                     sigma_percent = st.slider("Amplitude du bruit (% de l'écart-type)", 1, 50, 10)
                     
                     if st.button("Générer les données augmentées"):
@@ -1701,6 +1702,9 @@ elif page == "Data Augmentation":
                         # Option pour k_neighbors
                         k_neighbors = st.slider("Nombre de voisins", 1, 10, 5)
                         
+                        # Nombre d'échantillons
+                        n_samples = st.slider("Nombre d'échantillons à générer", 10, max_samples, min(1000, n_original))
+                        
                         if st.button("Générer les données augmentées"):
                             try:
                                 # Filtrer les données pour ne garder que les lignes complètes
@@ -1768,6 +1772,15 @@ elif page == "Data Augmentation":
                                     X_resampled = np.vstack(X_resampled)
                                     y_resampled = np.hstack(y_resampled)
                                 
+                                # Prendre seulement les n_samples premiers échantillons ou tous si moins disponibles
+                                n_samples_generated = min(n_samples, len(X_resampled) - len(X))
+                                if n_samples_generated > 0:
+                                    synthetic_indices = np.random.choice(range(len(X), len(X_resampled)), 
+                                                                        size=n_samples_generated, 
+                                                                        replace=False)
+                                else:
+                                    synthetic_indices = np.arange(len(X), len(X_resampled))
+                                
                                 # Regénérer les valeurs continues pour la variable cible
                                 # Pour chaque bin, calculer la moyenne des valeurs originales
                                 bin_means = {}
@@ -1783,9 +1796,6 @@ elif page == "Data Augmentation":
                                 y_continuous = y_continuous + y_noise
                                 
                                 # Créer un DataFrame avec les données augmentées (uniquement les nouvelles)
-                                # Identifier les échantillons synthétiques (ceux qui n'étaient pas dans les données d'origine)
-                                synthetic_indices = np.arange(len(X), len(X_resampled))
-                                
                                 augmented_data = []
                                 for idx in synthetic_indices:
                                     sample = {target: y_continuous[idx]}
@@ -1847,7 +1857,7 @@ elif page == "Data Augmentation":
                     """)
                     
                     # Paramètres
-                    n_samples = st.slider("Nombre d'échantillons à générer", 10, n_original * 5, n_original)
+                    n_samples = st.slider("Nombre d'échantillons à générer", 10, max_samples, min(1000, n_original))
                     
                     if st.button("Générer les données augmentées"):
                         try:
@@ -1906,7 +1916,7 @@ elif page == "Data Augmentation":
                     """)
                     
                     # Paramètres
-                    n_samples = st.slider("Nombre d'échantillons à générer", 10, n_original * 5, n_original)
+                    n_samples = st.slider("Nombre d'échantillons à générer", 10, max_samples, min(1000, n_original))
                     
                     # Sélection du modèle pour l'estimation
                     model_type = st.selectbox(
@@ -1980,7 +1990,7 @@ elif page == "Data Augmentation":
                     """)
                     
                     # Paramètres
-                    n_samples = st.slider("Nombre d'échantillons à générer", 10, n_original * 5, n_original)
+                    n_samples = st.slider("Nombre d'échantillons à générer", 10, max_samples, min(1000, n_original))
                     noise_level = st.slider("Niveau de bruit (% de l'écart-type)", 0, 30, 5)
                     
                     if st.button("Générer les données augmentées"):
@@ -2484,6 +2494,9 @@ elif page == "Modélisation":
                                 importance_df = pd.DataFrame({
                                     'Variable': features,
                                     'Importance': importances
+                                importance_df = pd.DataFrame({
+                                    'Variable': features,
+                                    'Importance': importances
                                 }).sort_values('Importance', ascending=False)
                                 
                                 fig = px.bar(
@@ -2500,7 +2513,7 @@ elif page == "Modélisation":
                         if st.checkbox("Afficher l'analyse SHAP (interprétabilité avancée)"):
                             try:
                                 with st.spinner("Calcul des valeurs SHAP en cours..."):
-                                   # Création de l'explainer SHAP
+                                    # Création de l'explainer SHAP
                                     X_test_processed = pipeline.named_steps['preprocessor'].transform(X_test)
                                     explainer = shap.TreeExplainer(pipeline.named_steps['model'])
                                     shap_values = explainer.shap_values(X_test_processed)
@@ -2563,7 +2576,7 @@ elif page == "Modélisation":
 
 # Page de prédiction
 elif page == "Prédiction":
-    st.markdown("<h2 class='sub-header'>Prédiction</h2>", unsafe_allow_html=True)
+    st.markdown("<h2 class='sub-header'>Prédiction de Récupération Métallurgique</h2>", unsafe_allow_html=True)
     
     # Vérifier si un modèle a été entraîné
     model_trained = (st.session_state.model_pipeline is not None and st.session_state.model_is_fitted) or \
@@ -2910,10 +2923,10 @@ elif page == "Prédiction":
         st.markdown("</div>", unsafe_allow_html=True)
 
 # Gestion des paramètres d'URL pour la déconnexion
-if st.experimental_get_query_params().get("logout", [""])[0] == "true":
+if st.query_params.get("logout", [""])[0] == "true":
     st.session_state["authentication_status"] = False
     st.session_state["username"] = ""
-    st.experimental_set_query_params()
+    st.query_params.clear()
     st.rerun()
 
 # Footer
