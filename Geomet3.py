@@ -2497,14 +2497,14 @@ elif page == "Modélisation":
                                     'Variable': features,
                                     'Importance': importances
                                 }).sort_values('Importance', ascending=False)
-                                
+
                                 fig = px.bar(
                                     importance_df, 
                                     x='Variable', 
                                     y='Importance',
                                     title="Importance des Variables"
-                                )
-                                st.plotly_chart(fig, use_container_width=True)
+                                 )
+                                 st.plotly_chart(fig, use_container_width=True)                               
                         except Exception as e:
                             st.warning(f"Impossible d'afficher l'importance des variables: {e}")
                         
